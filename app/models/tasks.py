@@ -19,4 +19,8 @@ class Task(Base):
     due_date = Column(Date, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
+    # One-to-many relationship with User
     owner = relationship("User", back_populates="tasks")
+
+    # Many-to-many relationship with Tag (through task_tags association table)
+    tags = relationship("Tag", secondary="task_tags", back_populates="tasks")
