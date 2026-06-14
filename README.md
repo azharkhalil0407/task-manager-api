@@ -1,35 +1,18 @@
-# Task Manager API
+# task-manager-api
 
-A production-structured RESTful API built with FastAPI and PostgreSQL for managing personal tasks with JWT authentication, tag support, and ownership-based access control.
+A RESTful Task Manager API built with FastAPI, PostgreSQL, and SQLAlchemy. Supports JWT-based authentication, task ownership, tag management, pagination, filtering, and a complete test suite. Fully containerized with Docker Compose.
 
 ---
 
 ## Tech Stack
 
-| Tool | Purpose |
-|------|---------|
-| FastAPI | Web framework |
-| PostgreSQL | Database |
-| SQLAlchemy | ORM with many-to-many relationship support |
-| Alembic | Database migrations |
-| JWT (python-jose) | Authentication |
-| Pydantic v2 | Data validation and serialization |
-| Passlib + bcrypt (4.0.1) | Password hashing |
-| pytest | Testing framework |
-
----
-
-## Features
-
-- User registration and login with JWT authentication
-- Full CRUD on tasks — create, read, update, and delete
-- Tag support with many-to-many relationships (tasks can share tags globally)
-- Filter tasks by status (`todo`, `in_progress`, `done`)
-- Case-insensitive title search
-- Pagination on task listing
-- Ownership checks — users can only access their own tasks
-- Consistent error responses across all endpoints (`{"status": "error", "message": "..."}`)
-- Automated test suite — 11 tests covering auth, CRUD, and permission checks
+- **Framework:** FastAPI
+- **Database:** PostgreSQL (production), SQLite (testing)
+- **ORM:** SQLAlchemy
+- **Auth:** JWT via `python-jose`, password hashing via `passlib[bcrypt]`
+- **Validation:** Pydantic v2
+- **Testing:** Pytest + FastAPI TestClient
+- **Containerization:** Docker + Docker Compose
 
 ---
 
@@ -37,208 +20,168 @@ A production-structured RESTful API built with FastAPI and PostgreSQL for managi
 
 ```
 task-manager-api/
-├── main.py
-├── config.py
-├── .env
-├── requirements.txt
-├── .gitignore
+├── app/
+│   ├── crud/
+│   │   ├── tasks.py          # Task CRUD operations
+│   │   └── users.py          # User CRUD operations
+│   ├── models/
+│   │   ├── tags.py           # Tag model + task_tags association table
+│   │   ├── tasks.py          # Task model with status enum
+│   │   └── users.py          # User model
+│   ├── routers/
+│   │   ├── tasks.py          # Task endpoints
+│   │   └── users.py          # Auth endpoints (register, login, me)
+│   ├── schemas/
+│   │   ├── tasks.py          # TaskCreate, TaskUpdate, TaskResponse
+│   │   └── users.py          # UserCreate, UserResponse
+│   ├── database.py           # Engine, session, Base
+│   ├── dependencies.py       # get_db dependency
+│   └── utils.py              # JWT helpers, password hashing, get_current_user
 ├── tests/
-│   ├── conftest.py
-│   ├── test_auth.py
-│   └── test_tasks.py
-└── app/
-    ├── database.py
-    ├── utils.py
-    ├── models/
-    │   ├── users.py
-    │   ├── tasks.py
-    │   └── tags.py
-    ├── schemas/
-    │   ├── users.py
-    │   └── tasks.py
-    ├── crud/
-    │   ├── users.py
-    │   └── tasks.py
-    └── routers/
-        ├── users.py
-        └── tasks.py
+│   ├── conftest.py           # Fixtures: client, db_session, auth_headers
+│   ├── test_auth.py          # Auth endpoint tests
+│   └── test_tasks.py         # Task endpoint tests
+├── config.py                 # Settings via pydantic-settings
+├── main.py                   # App entry point, routers, exception handlers
+├── docker-compose.yml
+├── Dockerfile
+└── requirements.txt
 ```
 
 ---
 
-## Setup
+## Features
 
-**1. Clone the repo**
+- User registration and login with bcrypt-hashed passwords
+- JWT access token authentication (30-minute expiry)
+- Full task CRUD with per-user ownership enforcement (403 on unauthorized access)
+- Task status: `todo`, `in_progress`, `done`
+- Many-to-many tag system via `task_tags` association table (tags shared globally, auto-created on use)
+- Pagination, case-insensitive title search, and status filtering
+- Global exception handlers returning consistent JSON error shapes
+- Isolated test suite using SQLite — no external database required to run tests
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose, **or** Python 3.9+ with PostgreSQL running locally
+
+### Run with Docker (recommended)
 
 ```bash
 git clone https://github.com/azharkhalil0407/task-manager-api.git
 cd task-manager-api
+docker-compose up --build
 ```
 
-**2. Create and activate a virtual environment**
+The API will be available at `http://localhost:8000`.
+
+`DATABASE_URL` is pre-configured to point to the PostgreSQL container defined in `docker-compose.yml`. You only need to set `SECRET_KEY` (see environment variables below).
+
+### Run Locally
 
 ```bash
-python3 -m venv venv
+# Create and activate a virtual environment
+python -m venv venv
 source venv/bin/activate
-```
 
-**3. Install dependencies**
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Create a .env file in the project root
+echo "DATABASE_URL=postgresql://user:password@localhost:5432/taskmanager" > .env
+echo "SECRET_KEY=your-secret-key-minimum-32-characters" >> .env
+
+# Create the database
+createdb taskmanager
+
+# Start the server
+uvicorn main:app --reload
 ```
-
-**4. Create a `.env` file in the project root**
-
-```
-DATABASE_URL=postgresql://your_user@localhost/task_manager_db
-SECRET_KEY=your_secret_key_minimum_32_characters
-```
-
-**5. Create the database**
-
-```bash
-psql postgres -c "CREATE DATABASE task_manager_db;"
-```
-
-**6. Run the server**
-
-```bash
-python3 -m uvicorn main:app --reload
-```
-
-Visit the interactive docs at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---
 
-## Testing
+## Environment Variables
 
-The project includes a complete test suite using pytest. All tests run against an isolated SQLite database (`test.db`), so your real PostgreSQL data stays untouched.
+| Variable       | Description                          | Required              |
+|----------------|--------------------------------------|-----------------------|
+| `DATABASE_URL` | PostgreSQL connection string         | Local dev only        |
+| `SECRET_KEY`   | JWT signing key (min 32 characters)  | Always                |
 
-**Run all tests**
-
-```bash
-pytest tests/ -v
-```
-
-**Run a specific test file**
-
-```bash
-pytest tests/test_auth.py -v
-```
-
-**Run a single test**
-
-```bash
-pytest tests/test_tasks.py::test_update_task_not_owner_fails -v
-```
-
-### What's tested?
-
-- **Auth endpoints** — successful registration, duplicate email, login with correct/wrong password, `/me` with valid/invalid/missing token
-- **Task CRUD** — create, read (paginated), update, delete, all with ownership enforcement
-- **Permissions** — a second user cannot update or delete another user's task
-
-All 11 tests pass with the current codebase.
+Docker users: `DATABASE_URL` is pre-configured in `docker-compose.yml`. Only `SECRET_KEY` needs to be set.
 
 ---
 
-## API Endpoints
+## API Reference
 
-### Users
+### Auth
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/users/register` | No | Register a new user |
-| POST | `/users/login` | No | Login and receive a JWT token |
-| GET | `/users/me` | Yes | Get current authenticated user |
+| Method | Endpoint          | Description             | Auth Required |
+|--------|-------------------|-------------------------|---------------|
+| POST   | `/users/register` | Register a new user     | No            |
+| POST   | `/users/login`    | Login and get JWT token | No            |
+| GET    | `/users/me`       | Get current user info   | Yes           |
 
 ### Tasks
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/tasks/` | Yes | List own tasks (paginated, searchable, filterable) |
-| POST | `/tasks/` | Yes | Create a new task |
-| GET | `/tasks/{id}` | Yes | Get a single task (ownership enforced) |
-| PUT | `/tasks/{id}` | Yes | Update a task (ownership enforced) |
-| DELETE | `/tasks/{id}` | Yes | Delete a task (ownership enforced) |
+| Method | Endpoint       | Description                        | Auth Required |
+|--------|----------------|------------------------------------|---------------|
+| GET    | `/tasks/`      | List tasks with pagination/filters | Yes           |
+| GET    | `/tasks/{id}`  | Get a single task by ID            | Yes           |
+| POST   | `/tasks/`      | Create a new task                  | Yes           |
+| PUT    | `/tasks/{id}`  | Update a task (owner only)         | Yes           |
+| DELETE | `/tasks/{id}`  | Delete a task (owner only)         | Yes           |
 
 ### Query Parameters for `GET /tasks/`
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | int | 1 | Page number (min: 1) |
-| `size` | int | 10 | Items per page (min: 1, max: 100) |
-| `search` | string | `""` | Case-insensitive search by title |
-| `status` | string | null | Filter by status value |
+| Parameter | Type    | Default | Description                                      |
+|-----------|---------|---------|--------------------------------------------------|
+| `page`    | integer | 1       | Page number                                      |
+| `size`    | integer | 10      | Results per page (max 100)                       |
+| `search`  | string  | `""`    | Filter by title (case-insensitive)               |
+| `status`  | string  | null    | `todo`, `in_progress`, or `done`                 |
 
-**Paginated response format**
+### Task Payload (POST / PUT)
+
+```json
+{
+  "title": "Buy groceries",
+  "description": "Milk, eggs, bread",
+  "status": "todo",
+  "due_date": "2026-06-30",
+  "tags": ["personal", "errands"]
+}
+```
+
+### Paginated Response
 
 ```json
 {
   "page": 1,
   "size": 10,
   "total": 2,
-  "results": [ { "task object" } ]
+  "results": [
+    {
+      "id": 1,
+      "title": "Buy groceries",
+      "description": "Milk, eggs, bread",
+      "status": "todo",
+      "due_date": "2026-06-30",
+      "user_id": 1,
+      "tags": ["personal", "errands"]
+    }
+  ]
 }
 ```
 
 ---
 
-## Task Fields
+## Error Handling
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `title` | string | Yes | 2 to 100 characters |
-| `description` | string | No | Optional detail |
-| `status` | string | No | Defaults to `todo` |
-| `due_date` | date (YYYY-MM-DD) | No | Optional deadline |
-| `tags` | list of strings | No | Shared globally across tasks |
-
-### Status Values
-
-- `todo`
-- `in_progress`
-- `done`
-
----
-
-## Example Request
-
-**Create a task**
-
-```json
-POST /tasks/
-Authorization: Bearer <token>
-
-{
-  "title": "Write unit tests",
-  "description": "Cover all CRUD endpoints with pytest",
-  "status": "in_progress",
-  "due_date": "2026-06-30",
-  "tags": ["testing", "backend"]
-}
-```
-
-**Response**
-
-```json
-{
-  "id": 1,
-  "title": "Write unit tests",
-  "description": "Cover all CRUD endpoints with pytest",
-  "status": "in_progress",
-  "due_date": "2026-06-30",
-  "user_id": 3,
-  "tags": ["testing", "backend"]
-}
-```
-
----
-
-## Error Format
-
-All errors return a consistent shape:
+All errors return a consistent JSON shape:
 
 ```json
 {
@@ -246,3 +189,58 @@ All errors return a consistent shape:
   "message": "Task not found"
 }
 ```
+
+Global exception handlers catch `RequestValidationError` (422) and `HTTPException` to ensure uniform error responses across all endpoints.
+
+---
+
+## Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+Tests use an isolated SQLite database that is created and dropped per test function. No PostgreSQL instance is required. The suite covers user registration, login, authentication edge cases, task CRUD, and ownership enforcement.
+
+---
+
+## Data Models
+
+### User
+
+| Field     | Type    | Notes            |
+|-----------|---------|------------------|
+| id        | integer | Primary key      |
+| email     | string  | Unique, required |
+| password  | string  | Bcrypt hashed    |
+| is_active | boolean | Default: true    |
+
+### Task
+
+| Field       | Type    | Notes                         |
+|-------------|---------|-------------------------------|
+| id          | integer | Primary key                   |
+| title       | string  | Required, 2-100 characters    |
+| description | string  | Optional                      |
+| status      | enum    | `todo`, `in_progress`, `done` |
+| due_date    | date    | Optional                      |
+| user_id     | integer | Foreign key to users (owner)  |
+| tags        | list    | Many-to-many via `task_tags`  |
+
+### Tag
+
+| Field | Type    | Notes        |
+|-------|---------|--------------|
+| id    | integer | Primary key  |
+| name  | string  | Unique       |
+
+Tags are shared across all users. When creating or updating a task, tags are automatically created if they do not already exist.
+
+---
+
+## Interactive Docs
+
+FastAPI provides auto-generated interactive documentation at:
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
