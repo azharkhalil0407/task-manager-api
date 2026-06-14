@@ -26,8 +26,7 @@ class TaskResponse(BaseModel):
     user_id: int
     tags: list[str] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
     @classmethod
     def model_validate(cls, obj, **kwargs):

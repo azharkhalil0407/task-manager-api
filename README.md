@@ -2,26 +2,36 @@
 
 A production-structured RESTful API built with FastAPI and PostgreSQL for managing personal tasks with JWT authentication, tag support, and ownership-based access control.
 
+---
+
 ## Tech Stack
 
-- **FastAPI** - Web framework
-- **PostgreSQL** - Database
-- **SQLAlchemy** - ORM with many-to-many relationship support
-- **Alembic** - Database migrations
-- **JWT (python-jose)** - Authentication
-- **Pydantic v2** - Data validation and serialization
-- **Passlib + bcrypt** - Password hashing
+| Tool | Purpose |
+|------|---------|
+| FastAPI | Web framework |
+| PostgreSQL | Database |
+| SQLAlchemy | ORM with many-to-many relationship support |
+| Alembic | Database migrations |
+| JWT (python-jose) | Authentication |
+| Pydantic v2 | Data validation and serialization |
+| Passlib + bcrypt (4.0.1) | Password hashing |
+| pytest | Testing framework |
+
+---
 
 ## Features
 
 - User registration and login with JWT authentication
-- Full CRUD on tasks - create, read, update, and delete
+- Full CRUD on tasks — create, read, update, and delete
 - Tag support with many-to-many relationships (tasks can share tags globally)
 - Filter tasks by status (`todo`, `in_progress`, `done`)
 - Case-insensitive title search
 - Pagination on task listing
-- Ownership checks - users can only access their own tasks
+- Ownership checks — users can only access their own tasks
 - Consistent error responses across all endpoints (`{"status": "error", "message": "..."}`)
+- Automated test suite — 11 tests covering auth, CRUD, and permission checks
+
+---
 
 ## Project Structure
 
@@ -31,6 +41,11 @@ task-manager-api/
 ├── config.py
 ├── .env
 ├── requirements.txt
+├── .gitignore
+├── tests/
+│   ├── conftest.py
+│   ├── test_auth.py
+│   └── test_tasks.py
 └── app/
     ├── database.py
     ├── utils.py
@@ -49,42 +64,84 @@ task-manager-api/
         └── tasks.py
 ```
 
+---
+
 ## Setup
 
-1. Clone the repo:
+**1. Clone the repo**
+
 ```bash
 git clone https://github.com/azharkhalil0407/task-manager-api.git
 cd task-manager-api
 ```
 
-2. Create and activate a virtual environment:
+**2. Create and activate a virtual environment**
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-3. Install dependencies:
+**3. Install dependencies**
+
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file in the project root:
+**4. Create a `.env` file in the project root**
+
 ```
 DATABASE_URL=postgresql://your_user@localhost/task_manager_db
 SECRET_KEY=your_secret_key_minimum_32_characters
 ```
 
-5. Create the database:
+**5. Create the database**
+
 ```bash
 psql postgres -c "CREATE DATABASE task_manager_db;"
 ```
 
-6. Run the server:
+**6. Run the server**
+
 ```bash
 python3 -m uvicorn main:app --reload
 ```
 
-7. Visit the interactive docs at `http://127.0.0.1:8000/docs`
+Visit the interactive docs at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+---
+
+## Testing
+
+The project includes a complete test suite using pytest. All tests run against an isolated SQLite database (`test.db`), so your real PostgreSQL data stays untouched.
+
+**Run all tests**
+
+```bash
+pytest tests/ -v
+```
+
+**Run a specific test file**
+
+```bash
+pytest tests/test_auth.py -v
+```
+
+**Run a single test**
+
+```bash
+pytest tests/test_tasks.py::test_update_task_not_owner_fails -v
+```
+
+### What's tested?
+
+- **Auth endpoints** — successful registration, duplicate email, login with correct/wrong password, `/me` with valid/invalid/missing token
+- **Task CRUD** — create, read (paginated), update, delete, all with ownership enforcement
+- **Permissions** — a second user cannot update or delete another user's task
+
+All 11 tests pass with the current codebase.
+
+---
 
 ## API Endpoints
 
@@ -106,14 +163,27 @@ python3 -m uvicorn main:app --reload
 | PUT | `/tasks/{id}` | Yes | Update a task (ownership enforced) |
 | DELETE | `/tasks/{id}` | Yes | Delete a task (ownership enforced) |
 
-## Query Parameters for `GET /tasks/`
+### Query Parameters for `GET /tasks/`
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `page` | int | 1 | Page number (min: 1) |
 | `size` | int | 10 | Items per page (min: 1, max: 100) |
 | `search` | string | `""` | Case-insensitive search by title |
-| `status` | string | `null` | Filter by status value |
+| `status` | string | null | Filter by status value |
+
+**Paginated response format**
+
+```json
+{
+  "page": 1,
+  "size": 10,
+  "total": 2,
+  "results": [ { "task object" } ]
+}
+```
+
+---
 
 ## Task Fields
 
@@ -125,15 +195,18 @@ python3 -m uvicorn main:app --reload
 | `due_date` | date (YYYY-MM-DD) | No | Optional deadline |
 | `tags` | list of strings | No | Shared globally across tasks |
 
-## Task Status Values
+### Status Values
 
 - `todo`
 - `in_progress`
 - `done`
 
+---
+
 ## Example Request
 
-**Create a task:**
+**Create a task**
+
 ```json
 POST /tasks/
 Authorization: Bearer <token>
@@ -147,7 +220,8 @@ Authorization: Bearer <token>
 }
 ```
 
-**Response:**
+**Response**
+
 ```json
 {
   "id": 1,
@@ -160,9 +234,12 @@ Authorization: Bearer <token>
 }
 ```
 
+---
+
 ## Error Format
 
 All errors return a consistent shape:
+
 ```json
 {
   "status": "error",
