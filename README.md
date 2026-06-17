@@ -197,7 +197,7 @@ Global exception handlers catch `RequestValidationError` (422) and `HTTPExceptio
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+python3 -m pytest tests/ -v
 ```
 
 Tests use an isolated SQLite database that is created and dropped per test function. No PostgreSQL instance is required. The suite covers user registration, login, authentication edge cases, task CRUD, and ownership enforcement.
